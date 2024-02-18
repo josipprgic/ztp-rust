@@ -1,5 +1,5 @@
 use std::net::TcpListener;
-use ztp_rust::run;
+use ztp_rust::startup::run;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
