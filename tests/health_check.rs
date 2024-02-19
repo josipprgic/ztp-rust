@@ -1,18 +1,32 @@
 use std::net::TcpListener;
-use ztp_rust::{configuration::must_load_configuration, startup::run};
-use sqlx::{PgPool, Connection};
+use secrecy::ExposeSecret;
+use ztp_rust::{configuration::must_load_configuration, startup::run, telemetry::{get_subscriber, init_sub}};
+use sqlx::PgPool;
+use std::sync::Once;
 
 pub struct TestApp {
     pub addr: String, 
     pub db_pool: PgPool
 }
 
+static ONCE_LOG_INIT: Once = Once::new();
+
 async fn spawn_app() -> TestApp {
+    ONCE_LOG_INIT.call_once(|| {
+        if std::env::var("TEST_LOG").is_ok() {
+            let sub = get_subscriber("ztp_test".to_string(), "debug".into(), std::io::stdout);
+            init_sub(sub);
+        } else {
+            let sub = get_subscriber("ztp_test".to_string(), "debug".into(), std::io::sink);
+            init_sub(sub);
+        }
+    });
+
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     // We retrieve the port assigned to us by the OS
     let port = listener.local_addr().unwrap().port();
     let config = must_load_configuration();
-    let pool = PgPool::connect(&config.database.connection_string())
+    let pool = PgPool::connect(&config.database.connection_string().expose_secret())
         .await
         .expect("Failed to connect to the database");
     
@@ -20,7 +34,6 @@ async fn spawn_app() -> TestApp {
         .execute(&pool)
         .await
         .expect("Failed to retrieve saved record");
-
 
     let server = run(listener, pool.clone()).expect("Failed to bind address");
     let _ = tokio::spawn(server);
