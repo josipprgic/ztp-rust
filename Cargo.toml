@@ -34,7 +34,7 @@ features = [
     "macros",
     "postgres",
     "chrono",
-    "migrate"
+    "migrate",
 ]
 
 [dependencies.uuid]

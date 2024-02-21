@@ -1,12 +1,13 @@
 use actix_web::{web, HttpResponse};
 use sqlx::PgPool;
 use chrono::Utc;
-use uuid::Uuid;
+
+use crate::domain::SubscriberDetails;
 
 #[derive(serde::Deserialize)]
 pub struct SubReq {
-    name: String,
-    email: String
+    pub name: String,
+    pub email: String
 }
 
 
@@ -21,7 +22,15 @@ pub struct SubReq {
 pub async fn subscribe(
     request: web::Form<SubReq>, 
     connection: web::Data<PgPool>) -> HttpResponse {
-    match insert_sub(&connection, &request).await
+    let sub = match request.0.try_into() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!(e);
+            return HttpResponse::BadRequest().finish()
+        },
+    };
+
+    match insert_sub(&connection, &sub).await
         {
             Ok(_) => HttpResponse::Ok().finish(),
             Err(_) => HttpResponse::InternalServerError().finish()  
@@ -32,13 +41,13 @@ pub async fn subscribe(
     name = "Saving new subscriber to database",
     skip(pool, data)
     )]
-pub async fn insert_sub(pool: &PgPool, data: &SubReq) -> Result<(), sqlx::Error> {
+pub async fn insert_sub(pool: &PgPool, data: &SubscriberDetails) -> Result<(), sqlx::Error> {
     sqlx::query!(r#"
                  insert into subscriptions (email, name, subscribed_at)
                  values ($1, $2, $3)
                  "#,
-                 data.email,
-                 data.name,
+                 data.email.as_ref(),
+                 data.name.as_ref(),
                  Utc::now().naive_utc())
         .execute(pool)
         .await

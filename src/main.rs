@@ -9,7 +9,7 @@ async fn main() -> Result<(), std::io::Error> {
     init_sub(sub);
 
     let config = configuration::must_load_configuration();
-    let address = format!("127.0.0.1:{}", config.application_port);
+    let address = format!("{}:{}", config.application.host, config.application.port);
     let listener = TcpListener::bind(address)?;
     let conn = PgPool::connect(&config.database.connection_string().expose_secret())
         .await
