@@ -1,6 +1,7 @@
 use crate::routes::SubReq;
 
 pub struct SubscriberName(String);
+#[derive(Clone)]
 pub struct SubscriberEmail(String);
 
 pub struct SubscriberDetails {

@@ -1,35 +1,29 @@
 use secrecy::{ExposeSecret, Secret};
 
+use crate::domain::SubscriberEmail;
+
 pub enum Environment {
     Production,
     Development
 }
 
-impl Environment {
-    pub fn as_str(&self) -> &str {
-        match self {
-            Self::Production => "production",
-            Self::Development => "development"
-        }
-    }
-}
-
-impl TryFrom<String> for Environment {
-    type Error = String;
-    
-    fn try_from(s: String) -> Result<Environment, Self::Error> {
-        match s.as_str() {
-           "production" => Ok(Environment::Production),
-           "development" => Ok(Environment::Development),
-           _ => Err(format!("Failed to parse application env(from: {}) - falling back to development", s))
-        }
-    }
-}
-
 #[derive(serde::Deserialize)]
 pub struct Settings {
     pub database: DatabaseSettings,
-    pub application: ApplicationSettings
+    pub application: ApplicationSettings,
+    pub email: EmailServiceSettings
+}
+
+#[derive(serde::Deserialize)]
+pub struct EmailServiceSettings {
+    pub address: String,
+    sender: String
+}
+
+impl EmailServiceSettings {
+    pub fn sender(&self) -> Result<SubscriberEmail, String> {
+        self.sender.clone().try_into()
+    }
 }
 
 #[derive(serde::Deserialize)]
@@ -73,4 +67,25 @@ pub fn must_load_configuration() -> Settings {
     
     settings.try_deserialize::<Settings>()
         .expect("Configuration can't be deserialized into Settings struct")
+}
+
+impl Environment {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Production => "production",
+            Self::Development => "development"
+        }
+    }
+}
+
+impl TryFrom<String> for Environment {
+    type Error = String;
+    
+    fn try_from(s: String) -> Result<Environment, Self::Error> {
+        match s.as_str() {
+           "production" => Ok(Environment::Production),
+           "development" => Ok(Environment::Development),
+           _ => Err(format!("Failed to parse application env(from: {}) - falling back to development", s))
+        }
+    }
 }
