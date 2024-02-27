@@ -14,10 +14,12 @@ name = "ztp"
 
 [dependencies]
 actix-web = "4.4.0"
+anyhow = "1.0.80"
 chrono = { version = "0.4.34", features = ["clock"] }
 config = "0.14.0"
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version="1.0.196",features=["derive"] }
+thiserror = "1.0.57"
 tokio = { version = "1.32.0", features = ["macros", "rt-multi-thread"] }
 tracing = {version="0.1.40", features=["log"]}
 tracing-actix-web = "0.7.9"

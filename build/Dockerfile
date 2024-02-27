@@ -1,6 +1,6 @@
 FROM lukemathwalker/cargo-chef:latest-rust-1.76.0 as chef
 WORKDIR /app
-RUN apt update && apt install lld clang -y 
+RUN apt update && apt install lld clang mold -y 
 
 FROM chef as planner 
 COPY . .
@@ -10,7 +10,7 @@ FROM chef as builder
 COPY --from=planner /app/recipe.json recipe.json 
 RUN cargo chef cook --release --recipe-path recipe.json 
 COPY . .
-RUN cargo build --release --bin ztp-rust
+RUN cargo build --release --bin ztp
 
 FROM debian:bookworm-slim AS runtime
 WORKDIR /app

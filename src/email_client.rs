@@ -21,7 +21,7 @@ impl EmailClient {
         subject: String, 
         html: String,
         plain: &str 
-        ) -> Result<(), String> {
+        ) -> Result<(), reqwest::Error> {
         let body = EmailRequest{
             sender: self.email.as_ref(),
             recipient: recipient.as_ref(),
@@ -39,7 +39,7 @@ impl EmailClient {
                 Ok(_) => Ok(()), 
                 Err(e) =>{
                     tracing::error!("Failed to send req: {}", e);
-                    Err("Failed".to_string())
+                    Err(e)
                 }
             }
     }
