@@ -1,16 +1,16 @@
 use actix_web::{web, HttpResponse, ResponseError};
 use anyhow::Context;
+use chrono::Utc;
 use reqwest::StatusCode;
 use sqlx::PgPool;
 use uuid::Uuid;
-use chrono::Utc;
 
 use crate::{domain::SubscriberDetails, email_client::EmailClient};
 
 #[derive(serde::Deserialize)]
 pub struct SubReq {
     pub name: String,
-    pub email: String
+    pub email: String,
 }
 
 #[derive(thiserror::Error)]
@@ -54,16 +54,20 @@ pub fn error_chain_fmt(
     skip(request, connection),
     fields(token = %request)
     )]
-pub async fn confirm_sub(request: web::Path<Uuid>,
-                         connection: web::Data<PgPool>) -> Result<HttpResponse, SubscribeError> {
-    sqlx::query!(r#"
+pub async fn confirm_sub(
+    request: web::Path<Uuid>,
+    connection: web::Data<PgPool>,
+) -> Result<HttpResponse, SubscribeError> {
+    sqlx::query!(
+        r#"
                     UPDATE subscriptions SET status = 'confirmed'
                     WHERE id IN (SELECT id FROM confirmation_tokens WHERE token = $1)
                   "#,
-                 request.as_ref())
-        .execute(connection.as_ref())
-        .await
-        .context("Failed to change subscriber status")?;
+        request.as_ref()
+    )
+    .execute(connection.as_ref())
+    .await
+    .context("Failed to change subscriber status")?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -77,35 +81,38 @@ pub async fn confirm_sub(request: web::Path<Uuid>,
         )
     )]
 pub async fn subscribe(
-    request: web::Form<SubReq>, 
+    request: web::Form<SubReq>,
     connection: web::Data<PgPool>,
-    email_client: web::Data<EmailClient>) -> Result<HttpResponse, SubscribeError> {
-    let sub = request.0.try_into()
+    email_client: web::Data<EmailClient>,
+) -> Result<HttpResponse, SubscribeError> {
+    let sub = request
+        .0
+        .try_into()
         .map_err(|s| SubscribeError::InputValidationError(s))?;
 
     let token = insert_sub(&connection, &sub)
         .await
         .context("Failed to insert subscriber")?;
 
-    email_client.send(
-                sub.email, 
-                format!("Welcome {}, we need just one more thing", sub.name.as_ref()), 
-                format!("curl localhost:8000/confirm/{}", token), 
-                "Confirm yourself maan")
+    email_client
+        .send(
+            sub.email,
+            format!("Welcome {}, we need just one more thing", sub.name.as_ref()),
+            format!("curl localhost:8000/confirm/{}", token),
+            "Confirm yourself maan",
+        )
         .await
         .context("Failed to send confirmation email")?;
 
     Ok(HttpResponse::Ok().finish())
 }
 
-#[tracing::instrument(
-    name = "Saving new subscriber to database",
-    skip(pool, data)
-    )]
+#[tracing::instrument(name = "Saving new subscriber to database", skip(pool, data))]
 async fn insert_sub(pool: &PgPool, data: &SubscriberDetails) -> Result<Uuid, sqlx::Error> {
     let conf_token = Uuid::new_v4();
 
-    sqlx::query!(r#"
+    sqlx::query!(
+        r#"
                  WITH rows AS (
                     INSERT INTO subscriptions(email, name, subscribed_at)
                     VALUES($1, $2, $3)
@@ -115,12 +122,13 @@ async fn insert_sub(pool: &PgPool, data: &SubscriberDetails) -> Result<Uuid, sql
                     SELECT id, $4
                     FROM rows;
                  "#,
-                 data.email.as_ref(),
-                 data.name.as_ref(),
-                 Utc::now().naive_utc(),
-                 conf_token)
-        .execute(pool)
-        .await?;
+        data.email.as_ref(),
+        data.name.as_ref(),
+        Utc::now().naive_utc(),
+        conf_token
+    )
+    .execute(pool)
+    .await?;
 
     Ok(conf_token)
 }

@@ -6,42 +6,47 @@ use crate::domain::SubscriberEmail;
 pub struct EmailClient {
     address: String,
     email: SubscriberEmail,
-    client: Client
+    client: Client,
 }
 
 impl EmailClient {
-    
     pub fn new(addr: String, sender: SubscriberEmail) -> Self {
-        EmailClient{address: addr, email: sender, client: Client::new()}
+        EmailClient {
+            address: addr,
+            email: sender,
+            client: Client::new(),
+        }
     }
 
     pub async fn send(
         &self,
         recipient: SubscriberEmail,
-        subject: String, 
+        subject: String,
         html: String,
-        plain: &str 
-        ) -> Result<(), reqwest::Error> {
-        let body = EmailRequest{
+        plain: &str,
+    ) -> Result<(), reqwest::Error> {
+        let body = EmailRequest {
             sender: self.email.as_ref(),
             recipient: recipient.as_ref(),
             subject: subject.as_str(),
             html: html.as_str(),
-            plain
+            plain,
         };
-        
-        match self.client
+
+        match self
+            .client
             .post(self.address.as_str())
             .header("Content-Type", "application/json")
             .json(&body)
             .send()
-            .await {
-                Ok(_) => Ok(()), 
-                Err(e) =>{
-                    tracing::error!("Failed to send req: {}", e);
-                    Err(e)
-                }
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                tracing::error!("Failed to send req: {}", e);
+                Err(e)
             }
+        }
     }
 }
 
